@@ -63,29 +63,29 @@ int main(int argc, char **argv) {
   while (loop) {
 
     got = erl_receive_msg(fd, buf, BUFSIZE, &emsg);
-    if (got == ERL_TICK) {
-      printf("got erl tick\n");
-      /* ignore */
-    } else if (got == ERL_ERROR) {
-      printf("got erl error\n");
-      loop = 0;
-    } else if (emsg.type == ERL_REG_SEND) {
-      printf("got normal message\n");
-      fromp = erl_element(2, emsg.msg);
-      tuplep = erl_element(3, emsg.msg);
-      fnp = erl_element(1, tuplep);
-      argp = erl_element(2, tuplep);
-  
-      resp = dispatchMessage(ERL_ATOM_PTR(fnp), argp);
-      erl_send(fd, fromp, resp);
-      erl_free_compound(resp);
+    switch (got){
+      case ERL_TICK: printf("got erl tick\n"); break;
+      case ERL_ERROR: printf("got erl error\n");
+                      loop = 0;
+                      break;
+      default: if (emsg.type == ERL_REG_SEND) {
+                 printf("got registered message\n");
+                 fromp = erl_element(2, emsg.msg);
+                 tuplep = erl_element(3, emsg.msg);
+                 fnp = erl_element(1, tuplep);
+                 argp = erl_element(2, tuplep);
 
-      erl_free_compound(emsg.from);
-      erl_free_compound(emsg.msg);
+                 resp = dispatchMessage(ERL_ATOM_PTR(fnp), argp);
+                 erl_send(fd, fromp, resp);
+                 erl_free_compound(resp);
+                 erl_free_compound(emsg.from);
+                 erl_free_compound(emsg.msg);
+               }
+               break;
     }
-  } /* while */
+  }
+  return 0;
 }
-
 
 int my_listen(int port) {
   int listen_fd;
