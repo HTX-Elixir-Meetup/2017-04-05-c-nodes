@@ -24,6 +24,8 @@ int main(int argc, char **argv) {
   ETERM *fromp, *tuplep, *fnp, *argp, *resp;
   int res;
 
+  long allocated, freed;
+
   port = atoi(argv[1]);
 
   erl_init(NULL, 0);
@@ -42,7 +44,6 @@ int main(int argc, char **argv) {
   if ((fd = erl_accept(listen, &conn)) == ERL_ERROR)
     erl_err_quit("erl_accept");
   fprintf(stderr, "Connected to %s\n\r", conn.nodename);
-
 
   while (loop) {
 
@@ -69,11 +70,15 @@ int main(int argc, char **argv) {
 
         resp = erl_format("{cnode, ~i}", res);
         erl_send(fd, fromp, resp);
+        erl_free_compound(resp);
 
-        erl_free_term(emsg.from); erl_free_term(emsg.msg);
-        erl_free_term(fromp); erl_free_term(tuplep);
-        erl_free_term(fnp); erl_free_term(argp);
-        erl_free_term(resp);
+        //erl_eterm_statistics(&allocated, &freed);
+        // printf("Preclean status: %ld %ld", allocated,freed);
+
+        erl_free_compound(emsg.from);
+        erl_free_compound(emsg.msg);      
+        // erl_eterm_statistics(&allocated, &freed);
+        // printf("Postclean status: %ld %ld", allocated,freed);
       }
     }
   } /* while */

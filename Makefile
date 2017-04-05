@@ -7,6 +7,8 @@ all:	bin/cnodeserver bin/cnodeclient bin/Elixir.Complex.beam
 
 bin/Elixir.Complex.beam: src/complex.ex
 	elixirc -o bin $<
+bin/Elixir.ComplexServer.beam: src/complex_server.ex
+	elixirc -o bin $<
 
 bin/%:	src/%.c
 	mkdir -p bin
