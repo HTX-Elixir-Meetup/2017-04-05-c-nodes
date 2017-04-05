@@ -1,4 +1,8 @@
-/* cnode_s.c */
+/*
+  cnodeserver.c
+
+  Adaptation of the Erlang C Node server code, some refactoring for clarity and modernity.
+*/
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -9,6 +13,16 @@
 #include "ei.h"
 
 #define BUFSIZE 1000
+
+ETERM* dispatchMessage( const char* func, ETERM* args) {
+  if (strncmp(func, "foo", 3) == 0) {
+    return erl_format("{cnode, ~i}", foo(ERL_INT_VALUE(args)));
+  } else if (strncmp(func, "bar", 3) == 0) {
+    return erl_format("{cnode, ~i}", bar(ERL_INT_VALUE(args)));
+  } else {
+    return NULL;
+  }
+}
 
 int main(int argc, char **argv) {
   int port;                                /* Listen port number */
@@ -33,16 +47,17 @@ int main(int argc, char **argv) {
   if (erl_connect_init(1, "secretcookie", 0) == -1)
     erl_err_quit("erl_connect_init");
 
-  /* Make a listen socket */
-  printf("creating listening socket...");
-  if ((listen = my_listen(port)) <= 0)
+  /* Make a listen socket */  
+  if ((listen = my_listen(port)) <= 0) {
     erl_err_quit("my_listen");
-
-  if (erl_publish(port) == -1)
+  } 
+  if (erl_publish(port) == -1) {
     erl_err_quit("erl_publish");
-
-  if ((fd = erl_accept(listen, &conn)) == ERL_ERROR)
+  }
+  if ((fd = erl_accept(listen, &conn)) == ERL_ERROR) {
     erl_err_quit("erl_accept");
+  }
+    
   fprintf(stderr, "Connected to %s\n\r", conn.nodename);
 
   while (loop) {
@@ -54,32 +69,19 @@ int main(int argc, char **argv) {
     } else if (got == ERL_ERROR) {
       printf("got erl error\n");
       loop = 0;
-    } else {
-      if (emsg.type == ERL_REG_SEND) {
-        printf("got normal message\n");
-        fromp = erl_element(2, emsg.msg);
-        tuplep = erl_element(3, emsg.msg);
-        fnp = erl_element(1, tuplep);
-        argp = erl_element(2, tuplep);
+    } else if (emsg.type == ERL_REG_SEND) {
+      printf("got normal message\n");
+      fromp = erl_element(2, emsg.msg);
+      tuplep = erl_element(3, emsg.msg);
+      fnp = erl_element(1, tuplep);
+      argp = erl_element(2, tuplep);
+  
+      resp = dispatchMessage(ERL_ATOM_PTR(fnp), argp);
+      erl_send(fd, fromp, resp);
+      erl_free_compound(resp);
 
-        if (strncmp(ERL_ATOM_PTR(fnp), "foo", 3) == 0) {
-          res = foo(ERL_INT_VALUE(argp));
-        } else if (strncmp(ERL_ATOM_PTR(fnp), "bar", 3) == 0) {
-          res = bar(ERL_INT_VALUE(argp));
-        }
-
-        resp = erl_format("{cnode, ~i}", res);
-        erl_send(fd, fromp, resp);
-        erl_free_compound(resp);
-
-        //erl_eterm_statistics(&allocated, &freed);
-        // printf("Preclean status: %ld %ld", allocated,freed);
-
-        erl_free_compound(emsg.from);
-        erl_free_compound(emsg.msg);      
-        // erl_eterm_statistics(&allocated, &freed);
-        // printf("Postclean status: %ld %ld", allocated,freed);
-      }
+      erl_free_compound(emsg.from);
+      erl_free_compound(emsg.msg);
     }
   } /* while */
 }
@@ -95,7 +97,6 @@ int my_listen(int port) {
 
   setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
-  //memset((void*) &addr, 0, (size_t) sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_port = htons(port);
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
